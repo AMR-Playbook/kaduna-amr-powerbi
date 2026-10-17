@@ -1,62 +1,70 @@
-<div align="center">
+# kaduna-amr-powerbi · dashboards
 
-# 📊 Kaduna AMR Watch — Dashboards
+Power BI data model, measures and reports for Kaduna AMR Watch. This is where everything the project produces reaches the people who decide what a patient receives.
 
-**A screen a clinician understands in ten seconds, and a story a manager or funder can act on.**
+> **The data here is synthetic.** Every page carries a SYNTHETIC banner and is not for clinical use.
 
-![Power BI](https://img.shields.io/badge/Power%20BI-Desktop-F2C811?style=flat-square&logo=powerbi&logoColor=black)
-![Data](https://img.shields.io/badge/data-SYNTHETIC%20practice-d29922?style=flat-square)
-![Clinical use](https://img.shields.io/badge/clinical%20use-not%20yet-cf222e?style=flat-square)
+---
 
-</div>
+## The audience decides the design
 
-> [!IMPORTANT]
-> **SYNTHETIC PRACTICE DATA, NOT FOR CLINICAL USE.** This banner appears on every report page.
+A doctor on a ward round, often on a phone, often with poor connectivity, has about ten seconds. If the screen cannot be read in that time it will not be used, and every other repository in this organisation was wasted effort.
 
-## Who reads what
+A hospital manager wants something different: turnaround times, multidrug-resistance by ward, data completeness. These are separate pages, not one page trying to serve both.
+
+---
+
+## Data model
 
 ```mermaid
-flowchart LR
-    M["Trusted measures<br/>one definition per number"] --> C["🩺 Clinical report<br/>antibiogram heatmap<br/>which antibiotic first?"]
-    M --> G["🏥 Management report<br/>volumes · turnaround<br/>MDR · data quality"]
-    EV["📚 Real evidence workbook"] --> E["Evidence page<br/><b>REAL only</b>"]
-    C --> D1["Clinicians · pharmacists"]
-    G --> D2["Hospital managers · Ministry"]
-    E --> D3["Funders"]
+flowchart TD
+    subgraph Dimensions
+        D1["dim_date"]
+        D2["dim_hospital"]
+        D3["dim_organism"]
+        D4["dim_antibiotic<br/>class, AWaRe"]
+        D5["dim_specimen"]
+    end
+    F["fact_ast_results<br/>one row per isolate per antibiotic"]
+    D1 --> F
+    D2 --> F
+    D3 --> F
+    D4 --> F
+    D5 --> F
+    F --> M["Measures<br/>Tests, Resistant, Pct Susceptible,<br/>Isolates, MDR Rate, Small Sample Flag"]
+
+    style F fill:#1f3a5f,stroke:#1f3a5f,color:#ffffff
+    style M fill:#b8860b,stroke:#b8860b,color:#ffffff
 ```
 
-> [!CAUTION]
-> Real and synthetic numbers never appear on the same page.
+---
 
-## Design rules
+## Measure rules
 
-| Rule | Why |
+| Rule | Reason |
 |---|---|
-| Fewer than 30 isolates → grey cell | A percentage from 5 isolates looks as solid as one from 500 |
-| Count in every tooltip | No percentage without its count |
-| `DIVIDE([Resistant],[Tests])`, never an average of percentages | Averaging percentages gives wrong totals |
-| Implicit measures turned off | Nobody can drag a raw column into a chart and get a silent sum |
-| AWaRe group next to every antibiotic | A working Access drug should be visibly preferred over Watch or Reserve |
-| Meaning never depends on colour alone | Colour-blind clinicians must read it correctly |
+| Use `DIVIDE([Resistant], [Tests])`, never a stored percentage column | Percentages cannot be averaged. A hospital at 90% on 10 tests and one at 50% on 1,000 tests average to 70%, when the true combined figure is about 50%. |
+| Count isolates with `DISTINCTCOUNT(isolate_id)` | The fact table holds roughly ten rows per isolate. |
+| Turn off implicit measures | Otherwise dragging a raw column into a chart silently produces a sum where a count belongs. |
+| Every visual shows the count behind the percentage | A figure from 5 isolates must not look like a figure from 500. |
+| Grey out anything under 30 isolates | Standard antibiogram practice. Below that the percentage is not reliable enough to guide treatment. |
 
-## Validation
+---
 
-Before any visual is built, measures must reproduce sheet `11_ANSWER_KEY` of the [Clean Handoff Pack](https://github.com/AMR-Playbook/.github/releases/tag/excel-handoff-v2). With *E. coli*, ceftriaxone and 2024 selected, % resistant must read **61.7% (n = 326)**.
+## Pages
 
-## Layout
+1. **Antibiogram.** Organisms as rows, antibiotics as columns, percent susceptible in each cell. Green high, red low, grey where fewer than 30 were tested. Filters for hospital, specimen, year and ward. Urine and blood must be separable, because the organism mix differs.
+2. **Which antibiotic first.** For a chosen specimen and ward, antibiotics ranked by percent susceptible with their WHO AWaRe group shown, so a working Access drug is visibly preferred over a Watch or Reserve drug.
+3. **Management view.** Tests per month, turnaround time by hospital, multidrug-resistance by ward, data completeness.
+4. **Evidence page.** Built only from the real, cited evidence register. Real and synthetic figures never share a page.
 
-```
-reports/      Power BI project files (.pbip preferred, so changes can be reviewed in Git)
-measures/     DAX measure library with plain-English documentation
-design/       sketches, wireframes, style guide, user-test notes
-briefs/       monthly brief template, evidence page notes, demo material
-```
+Both clinical pages need a phone layout.
 
-> [!TIP]
-> Save reports as a **Power BI Project (`.pbip`)** rather than a single `.pbix`. It stores the model and report as text files, so reviewers can see exactly what changed.
+---
 
-## Getting started
+## Before anything is shown to a clinician
 
-1. Install Power BI Desktop (Windows).
-2. Connect with the **read-only** database role from `kaduna-amr-sql`, or the Clean Handoff Pack until the database is ready.
-3. Pick an [open issue](../../issues) and read [CONTRIBUTING](https://github.com/AMR-Playbook/.github/blob/main/CONTRIBUTING.md).
+- [ ] Every measure validated against the answer key.
+- [ ] SYNTHETIC banner visible on every page.
+- [ ] Tested on at least two people who do not work in data, watching where they hesitate.
+- [ ] Meaning never depends on colour alone.
